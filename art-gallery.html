@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ArtSphere | Virtual Gallery Experience</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Add Three.js and OrbitControls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ["Inter", "sans-serif"],
+                        serif: ["Playfair Display", "serif"],
+                    },
+                    colors: {
+                        gallery: {
+                            dark: "#1a1a1a",
+                            light: "#f8f8f8",
+                            accent: "#E63946",
+                            muted: "#6c757d",
+                            highlight: "#FFD700",
+                        },
+                    },
+                },
+            },
+        };
+
+        // Toast notification function
+        function showToast(message, type = 'success') {
+            // Remove any existing toasts
+            const existingToasts = document.querySelectorAll('.toast');
+            existingToasts.forEach(toast => toast.remove());
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+        <div class="flex items-center">
+            <div class="mr-2">
+                ${type === 'success' ? '✓' : type === 'error' ? '✗' : 'ℹ'}
+            </div>
+            <div>${message}</div>
+        </div>
+    `;
+
+            toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        border-radius: 8px;
+        color: white;
+        z-index: 1000;
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.3s, transform 0.3s;
+        font-size: 14px;
+        font-weight: 500;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        max-width: 300px;
+    `;
+
+            document.body.appendChild(toast);
+
+            // Show toast
+            setTimeout(() => {
+                toast.style.opacity = '1';
+                toast.style.transform = 'translateY(0)';
+            }, 10);
+
+            // Hide after 3 seconds
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        document.body.removeChild(toast);
+                    }
+                }, 300);
+            }, 3000);
+        }
+    </script>
+    <style>
+        @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap");
+
+        [x-cloak] {
+            display: none !important;
+        }
+
+        /* .modal-hidden {
+            display: none !important;
+        } */
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        .art-card:hover .art-overlay {
+            opacity: 1;
+        }
+
+        .glass {
+            backdrop-filter: blur(10px);
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .dark-glass {
+            backdrop-filter: blur(10px);
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+
+        .parallax-bg {
+            background-attachment: fixed;
+        }
+
+        .art-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-auto-rows: 300px;
+            grid-auto-flow: dense;
+        }
+
+        .art-grid-item-large {
+            grid-column: span 2;
+            grid-row: span 2;
+        }
+
+        .art-grid-item-tall {
+            grid-row: span 2;
+        }
+
+        .art-grid-item-wide {
+            grid-column: span 2;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* 3D Effect for the Virtual Tour */
+        .tour-card {
+            transform-style: preserve-3d;
+            transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .tour-card:hover {
+            transform: rotateY(10deg) rotateX(5deg) scale(1.05);
+        }
+
+        /* Floating animation */
+        @keyframes float {
+            0% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-20px);
+            }
+
+            100% {
+                transform: translateY(0px);
+            }
+        }
+
+        .floating {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        /* Art reveal animation */
+        .art-reveal {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .art-reveal::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #1a1a1a;
+            transform: translateX(-100%);
+            transition: transform 0.5s ease-out;
+        }
+
+        .art-reveal.revealed::after {
+            transform: translateX(100%);
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .text-shadow {
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .text-shadow-sm {
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: white;
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.3s, transform 0.3s;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .toast.success {
+            background-color: #10B981;
+        }
+
+        .toast.error {
+            background-color: #EF4444;
+        }
+
+        .toast.info {
+            background-color: #3B82F6;
+        }
+    </style>
+</head>
+
+
+<body class="bg-gallery-light text-gallery-dark font-sans" x-data="{ 
+        mobileMenuOpen: false, 
+        darkMode: false, 
+        activeFilter: 'all', 
+        cursorPosition: { x: 0, y: 0 }, 
+        showCursor: false, 
+        commentFormOpen: false, 
+        artModal: { open: false, artwork: null }, 
+        threeDModalOpen: false,
+        galleryLoading: false,
+    }" x-init="
+        window.addEventListener('mousemove', (e) => { 
+            cursorPosition.x = e.clientX; 
+            cursorPosition.y = e.clientY;
+            showCursor = true;
+        });
+        window.addEventListener('mouseleave', () => { showCursor = false; });
+        
+        if (localStorage.getItem('darkMode')) {
+            darkMode = localStorage.getItem('darkMode') === 'true';
+        }
+        
+        $watch('darkMode', value => localStorage.setItem('darkMode', value));
+
+    " :class="darkMode ? 'bg-gallery-dark text-white' : 'bg-gallery-light text-gallery-dark'">
+
+    <div class="cursor-circle hidden md:block" x-show="showCursor" x-cloak
+        x-bind:style="'left: ' + cursorPosition.x + 'px; top: ' + cursorPosition.y + 'px'"
+        :class="darkMode ? 'bg-white' : 'bg-gallery-accent'"></div>
+
+    <div id="loader" class="fixed inset-0 z-50 flex items-center justify-center bg-white" x-data="{ show: true }"
+        x-init="setTimeout(() => { show = false }, 1500)" x-show="show"
+        x-transition:leave="transition-opacity duration-1000" x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0">
+        <div class="relative">
+            <svg class="animate-spin h-16 w-16 text-gallery-accent" xmlns="http://www.w3.org/2000/svg" fill="none"
+                viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                </path>
+            </svg>
+
+            <span class="absolute top-20 left-1/2 transform -translate-x-1/2 font-serif text-lg">
+                ArtSphere</span>
+        </div>
+    </div>
+
+    <nav class="fixed top-0 left-0 right-0 z-40 transition-all duration-300" x-data="{ 
+         scrolled: false,
+         updateNavbar() {
+             this.scrolled = window.scrollY > 10;
+         }
+     }" x-init="
+         updateNavbar();
+         window.addEventListener('scroll', () => updateNavbar());
+         $watch('darkMode', () => $nextTick(() => updateNavbar()));
+     " :class="{ 
+         'backdrop-blur-md shadow-lg': scrolled, 
+         'bg-transparent': !scrolled, 
+         'dark-glass': (darkMode && scrolled), 
+         'glass': (!darkMode && scrolled) 
+     }">
+
+        <div class="container mx-auto px-4 py-4 flex items-center justify-between">
+            <a href="#hero" class="font-serif text-2xl font-bold tracking-wider transition-colors duration-300"
+                :class="darkMode ? 'text-white' : (scrolled ? 'text-gallery-dark' : 'text-white')">
+                ART<span class="text-gallery-accent">SPACE</span>
+            </a>
+
+            <div class="hidden md:flex items-center space-x-8">
+                <a href="#featured" class="nav-link relative transition-colors duration-300"
+                    :class="darkMode ? 'text-white hover:text-gallery-accent' : (scrolled ? 'text-gallery-dark hover:text-gallery-accent' : 'text-white hover:text-gallery-highlight')">Featured</a>
+                <a href="#gallery" class="nav-link relative transition-colors duration-300"
+                    :class="darkMode ? 'text-white hover:text-gallery-accent' : (scrolled ? 'text-gallery-dark hover:text-gallery-accent' : 'text-white hover:text-gallery-highlight')">Gallery</a>
+                <a href="#artists" class="nav-link relative transition-colors duration-300"
+                    :class="darkMode ? 'text-white hover:text-gallery-accent' : (scrolled ? 'text-gallery-dark hover:text-gallery-accent' : 'text-white hover:text-gallery-highlight')">Artists</a>
+                <a href="#tour" class="nav-link relative transition-colors duration-300"
+                    :class="darkMode ? 'text-white hover:text-gallery-accent' : (scrolled ? 'text-gallery-dark hover:text-gallery-accent' : 'text-white hover:text-gallery-highlight')">Virtual
+                    Tour</a>
+                <a href="#comments" class="nav-link relative transition-colors duration-300"
+                    :class="darkMode ? 'text-white hover:text-gallery-accent' : (scrolled ? 'text-gallery-dark hover:text-gallery-accent' : 'text-white hover:text-gallery-highlight')">Comments</a>
+
+                <button @click="darkMode = !darkMode"
+                    class="p-2 rounded-full transition-all duration-300 hover:scale-110"
+                    :class="darkMode ? 'bg-white text-gallery-dark hover:bg-gray-100' : (scrolled ? 'bg-gallery-dark text-white hover:bg-gallery-dark/80' : 'bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm')">
+                    <svg x-show="!darkMode" xmlns="http://www.w3.org/2000/svg"
+                        class="h-5 w-5 transition-transform duration-300" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                    <svg x-show="darkMode" xmlns="http://www.w3.org/2000/svg"
+                        class="h-5 w-5 transition-transform duration-300" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                </button>
+            </div>
+
+            <button @click="mobileMenuOpen = !mobileMenuOpen"
+                class="md:hidden p-2 rounded-md transition-colors duration-300"
+                :class="darkMode ? 'text-white hover:bg-white/10' : (scrolled ? 'text-gallery-dark hover:bg-gallery-dark/10' : 'text-white hover:bg-white/10')">
+                <svg x-show="!mobileMenuOpen" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+                <svg x-show="mobileMenuOpen" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Mobile Menu -->
+        <div x-show="mobileMenuOpen" x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0 transform -translate-y-4"
+            x-transition:enter-end="opacity-100 transform translate-y-0"
+            x-transition:leave="transition ease-in duration-300"
+            x-transition:leave-start="opacity-100 transform translate-y-0"
+            x-transition:leave-end="opacity-0 transform -translate-y-4"
+            class="md:hidden absolute top-full left-0 right-0 p-4 shadow-lg backdrop-blur-md"
+            :class="darkMode ? 'bg-gallery-dark/90' : 'bg-white/90'">
+            <div class="flex flex-col space-y-4">
+                <a href="#featured" @click="mobileMenuOpen = false" class="py-2 transition-colors duration-300"
+                    :class="darkMode ? 'text-white hover:text-gallery-accent' : 'text-gallery-dark hover:text-gallery-accent'">Featured</a>
+                <a href="#gallery" @click="mobileMenuOpen = false" class="py-2 transition-colors duration-300"
+                    :class="darkMode ? 'text-white hover:text-gallery-accent' : 'text-gallery-dark hover:text-gallery-accent'">Gallery</a>
+                <a href="#artists" @click="mobileMenuOpen = false" class="py-2 transition-colors duration-300"
+                    :class="darkMode ? 'text-white hover:text-gallery-accent' : 'text-gallery-dark hover:text-gallery-accent'">Artists</a>
+                <a href="#tour" @click="mobileMenuOpen = false" class="py-2 transition-colors duration-300"
+                    :class="darkMode ? 'text-white hover:text-gallery-accent' : 'text-gallery-dark hover:text-gallery-accent'">Virtual
+                    Tour</a>
+                <a href="#comments" @click="mobileMenuOpen = false" class="py-2 transition-colors duration-300"
+                    :class="darkMode ? 'text-white hover:text-gallery-accent' : 'text-gallery-dark hover:text-gallery-accent'">Comments</a>
+
+                <div class="flex items-center justify-between py-2 border-t pt-4"
+                    :class="darkMode ? 'border-white/10' : 'border-gallery-dark/10'">
+                    <span :class="darkMode ? 'text-white' : 'text-gallery-dark'">Dark Mode</span>
+                    <button @click="darkMode = !darkMode" class="p-2 rounded-full transition-all duration-300"
+                        :class="darkMode ? 'bg-white text-gallery-dark' : 'bg-gallery-dark text-white'">
+                        <svg x-show="!darkMode" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                        </svg>
+                        <svg x-show="darkMode" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <section id="hero" class="relative h-screen flex items-center justify-center overflow-hidden">
+        <div class="absolute inset-0 z-0">
+            <div class="absolute inset-0 bg-black opacity-40"></div>
+            <img src="https://images.unsplash.com/photo-1577083165633-14ebcdb0f658?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+                alt="Art Gallery" class="w-full h-full object-cover" />
+        </div>
+        <div class="relative z-10 text-center px-4 max-w-5xl">
+            <h1 class="font-serif text-4xl md:text-6xl lg:text-7xl text-white mb-4 leading-tight text-shadow">
+                Explore the World of
+                <span class="text-gallery-accent">Contemporary Art</span>
+            </h1>
+            <p class="text-white/90 text-lg md:text-xl mb-8 max-w-3xl mx-auto text-shadow-sm">
+                Immerse yourself in our virtual gallery, showcasing the finest
+                artworks from renowned artists across the globe.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="#gallery"
+                    class="px-8 py-3 bg-gallery-accent text-white font-semibold rounded-full transition-transform hover:scale-105 shadow-lg">
+                    Explore Gallery
+                </a>
+                <a href="#tour"
+                    class="px-8 py-3 bg-white/10 text-white backdrop-blur-sm border border-white/30 rounded-full transition-transform hover:scale-105 hover:bg-white/20">
+                    Take Virtual Tour
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <style>
+        .text-shadow {
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .text-shadow-sm {
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+    <section>
+        <div class="absolute bottom-8 left-0 right-0 text-center animate-bounce z-10">
+            <a href="#featured" class="text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mx-auto" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                </svg>
+                <span class="text-sm">Scroll Down</span>
+            </a>
+        </div>
+    </section>
+
+    <section id="featured" class="py-20 relative" :class="darkMode ? 'bg-gallery-dark' : 'bg-gallery-light'" x-data="{ 
+        currentSlide: 0, 
+        featuredArt: [
+        { id: 4, title: 'The Silent Echo', artist: 'Elena Martinez', year: 2024, medium: 'Oil on Canvas', description: 'A stunning depiction of urban solitude amidst chaos.', image: 'https://images.unsplash.com/photo-1514539079130-25950c84af65?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1200&h=800&q=80' },
+        { id: 3, title: 'Digital Renaissance', artist: 'Marcus Wei', year: 2023, medium: 'Digital Art', description: 'A fusion of classical techniques with modern digital expression.', image: 'https://images.unsplash.com/photo-1576956069908-be6a21a778b4?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
+        { id: 2, title: 'Fragmented Reality', artist: 'Sophia Johnson', year: 2025, medium: 'Mixed Media', description: 'Exploring the boundaries between perception and reality.', image: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1200&h=800&q=80' },
+        { id: 1, title: 'Cosmic Resonance', artist: 'Aiden Parker', year: 2024, medium: 'Acrylic on Canvas', description: 'A vibrant exploration of universal energy and connection.', image: 'https://images.unsplash.com/photo-1464802686167-b939a6910659?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1200&h=800&q=80' }
+    ]
+    }" x-init="setInterval(() => { currentSlide = (currentSlide + 1) % featuredArt.length }, 5000)">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-16">
+                <h2 class="font-serif text-3xl md:text-4xl lg:text-5xl mb-4"
+                    :class="darkMode ? 'text-white' : 'text-gallery-dark'">
+                    Featured <span class="text-gallery-accent">Masterpieces</span>
+                </h2>
+                <div class="w-24 h-1 bg-gallery-accent mx-auto"></div>
+            </div>
+
+            <div class="relative h-[500px] md:h-[600px] overflow-hidden rounded-lg shadow-xl">
+                <template x-for="(artwork, index) in featuredArt" :key="artwork.id">
+                    <div class="absolute inset-0 transition-opacity duration-1000 ease-in-out"
+                        :class="{ 'opacity-100': currentSlide === index, 'opacity-0': currentSlide !== index }">
+                        <img :src="artwork.image" :alt="artwork.title" class="w-full h-full object-cover" />
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>
+                        <div class="absolute bottom-0 left-0 right-0 p-6 md:p-10 text-white">
+                            <h3 class="font-serif text-2xl md:text-4xl mb-2" x-text="artwork.title"></h3>
+                            <p class="mb-1">
+                                <span class="text-gallery-accent">Artist:</span>
+                                <span x-text="artwork.artist"></span>
+                            </p>
+                            <p class="mb-1">
+                                <span class="text-gallery-accent">Year:</span>
+                                <span x-text="artwork.year"></span>
+                            </p>
+                            <p class="mb-3">
+                                <span class="text-gallery-accent">Medium:</span>
+                                <span x-text="artwork.medium"></span>
+                            </p>
+                            <p class="text-white/90 max-w-2xl text-sm md:text-base" x-text="artwork.description"></p>
+                            <button @click="artModal = { open: true, artwork: featuredArt[currentSlide] }"
+                                class="mt-4 px-5 py-2 bg-gallery-accent text-white rounded-full text-sm hover:bg-opacity-90 transition-colors">
+                                View Details
+                            </button>
+                        </div>
+                    </div>
+                </template>
+
+                <div class="absolute top-1/2 left-4 transform -translate-y-1/2 z-10">
+                    <button @click="currentSlide = (currentSlide - 1 + featuredArt.length) % featuredArt.length"
+                        class="p-2 rounded-full bg-black/30 text-white hover:bg-black/50 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="absolute top-1/2 right-4 transform -translate-y-1/2 z-10">
+                    <button @click="currentSlide = (currentSlide + 1) % featuredArt.length"
+                        class="p-2 rounded-full bg-black/30 text-white hover:bg-black/50 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="absolute bottom-4 left-0 right-0 flex justify-center space-x-3 z-10">
+                    <template x-for="(_, index) in featuredArt" :key="index">
+                        <button @click="currentSlide = index"
+                            :class="{ 'w-12 bg-gallery-accent': currentSlide === index, 'w-4 bg-white/50': currentSlide !== index }"
+                            class="h-2 rounded-full transition-all duration-300"></button>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+
+    <section id="gallery" class="py-20" :class="darkMode ? 'bg-black' : 'bg-gray-100'">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-16">
+                <h2 class="font-serif text-3xl md:text-4xl lg:text-5xl mb-4"
+                    :class="darkMode ? 'text-white' : 'text-gallery-dark'">
+                    Art <span class="text-gallery-accent">Gallery</span>
+                </h2>
+                <div class="w-24 h-1 bg-gallery-accent mx-auto mb-8"></div>
+                <p class="max-w-3xl mx-auto text-lg" :class="darkMode ? 'text-white/80' : 'text-gallery-dark/80'">
+                    Explore our curated collection of contemporary artworks from
+                    emerging and established artists around the world.
+                </p>
+            </div>
+
+            <div class="flex flex-wrap justify-center mb-10 gap-3"
+                x-data="{ filters: ['all', 'painting', 'sculpture', 'digital', 'photography', 'mixed'] }">
+                <template x-for="filter in filters" :key="filter">
+                    <button @click="activeFilter = filter"
+                        class="px-6 py-2 rounded-full text-sm font-medium transition-colors"
+                        :class="activeFilter === filter ? 
+                        (darkMode ? 'bg-gallery-accent text-white' : 'bg-gallery-accent text-white') : 
+                        (darkMode ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-white text-gallery-dark hover:bg-gray-200')">
+                        <span class="capitalize" x-text="filter === 'all' ? 'All Works' : filter"></span>
+                    </button>
+                </template>
+            </div>
+
+            <div class="art-grid gap-4" x-data="{ artworks: [
+              { id: 1, title: 'Urban Dreams', artist: 'Elena Martinez', category: 'painting', size: 'large', image: 'https://images.unsplash.com/photo-1549289524-06cf8837ace5?w=800&h=800&fit=crop&q=80' },
+              { id: 2, title: 'Digital Genesis', artist: 'Marcus Wei', category: 'digital', size: 'normal', image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400&h=400&fit=crop&q=80' },
+              { id: 3, title: 'Solitude', artist: 'Sophia Johnson', category: 'photography', size: 'tall', image: 'https://images.unsplash.com/photo-1496449903678-68ddcb189a24?w=400&h=800&fit=crop&q=80' },
+              { id: 4, title: 'Abstract Thoughts', artist: 'Aiden Parker', category: 'painting', size: 'normal', image: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=400&h=400&fit=crop&q=80' },
+              { id: 5, title: 'Bronze Age', artist: 'Julia Chen', category: 'sculpture', size: 'wide', image: 'https://images.unsplash.com/photo-1575224300306-1b8da36134ec?w=800&h=400&fit=crop&q=80' },
+              { id: 6, title: 'Neon Lights', artist: 'Marcus Wei', category: 'digital', size: 'normal', image: 'https://images.unsplash.com/photo-1520034475321-cbe63696469a?w=400&h=400&fit=crop&q=80' },
+              { id: 7, title: 'Fragmented Memory', artist: 'Elena Martinez', category: 'mixed', size: 'tall', image: 'https://images.unsplash.com/photo-1579965342575-16428a7c8881?w=400&h=800&fit=crop&q=80' },
+              { id: 8, title: 'Eternal Spring', artist: 'Sophia Johnson', category: 'painting', size: 'normal', image: 'https://images.unsplash.com/photo-1508669232496-137b159c1cdb?w=400&h=400&fit=crop&q=80' },
+              { id: 9, title: 'Digital Dystopia', artist: 'Marcus Wei', category: 'digital', size: 'wide', image: 'https://images.unsplash.com/photo-1563089145-599997674d42?w=800&h=400&fit=crop&q=80' },
+              { id: 10, title: 'Stone Whispers', artist: 'Julia Chen', category: 'sculpture', size: 'normal', image: 'https://images.unsplash.com/photo-1661016837937-668ccd544381?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
+              { id: 11, title: 'Cityscape', artist: 'Aiden Parker', category: 'photography', size: 'large', image: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=800&h=800&fit=crop&q=80' },
+              { id: 12, title: 'Floating Islands', artist: 'Elena Martinez', category: 'mixed', size: 'normal', image: 'https://images.unsplash.com/photo-1547891654-e66ed7ebb968?w=400&h=400&fit=crop&q=80' }
+          ] }">
+                <template
+                    x-for="artwork in artworks.filter(art => activeFilter === 'all' || art.category === activeFilter)"
+                    :key="artwork.id">
+                    <div :class="{
+                        'art-grid-item-large': artwork.size === 'large',
+                        'art-grid-item-tall': artwork.size === 'tall',
+                        'art-grid-item-wide': artwork.size === 'wide'
+                    }" class="art-card group relative overflow-hidden rounded-lg art-reveal" x-init="
+                        setTimeout(() => {
+                            $el.classList.add('revealed');
+                        }, 100 * artwork.id);
+                    ">
+                        <img :src="artwork.image" :alt="artwork.title"
+                            class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                        <div
+                            class="art-overlay absolute inset-0 bg-black/70 opacity-0 transition-opacity duration-300 flex flex-col justify-end p-6">
+                            <h3 class="font-serif text-xl text-white mb-1" x-text="artwork.title"></h3>
+                            <p class="text-gallery-accent mb-3" x-text="artwork.artist"></p>
+                            <p class="text-white/80 text-sm capitalize" x-text="artwork.category"></p>
+                            <button @click="artModal = { open: true, artwork: artwork }"
+                                class="mt-4 px-4 py-2 bg-gallery-accent text-white text-sm rounded-full w-max hover:bg-opacity-90 transition-colors">
+                                View Details
+                            </button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </section>
+
+    <section id="artists" class="py-20" :class="darkMode ? 'bg-gallery-dark' : 'bg-white'">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-16">
+                <h2 class="font-serif text-3xl md:text-4xl lg:text-5xl mb-4"
+                    :class="darkMode ? 'text-white' : 'text-gallery-dark'">
+                    Featured <span class="text-gallery-accent">Artists</span>
+                </h2>
+                <div class="w-24 h-1 bg-gallery-accent mx-auto mb-8"></div>
+                <p class="max-w-3xl mx-auto text-lg" :class="darkMode ? 'text-white/80' : 'text-gallery-dark/80'">
+                    Meet the creative minds behind our most captivating artworks.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8" x-data="{ artists: [
+                { 
+                    id: 1, 
+                    name: 'Elena Martinez', 
+                    specialty: 'Contemporary Oil Painting',
+                    bio: 'Elena Martinez is a Spanish-born artist known for her vibrant oil paintings that explore urban environments and human emotions. With over 15 years of experience, her work has been exhibited in major galleries across Europe and North America.',
+                    image: 'https://images.unsplash.com/photo-1656258762138-f834870c29b0?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+                    awards: ['Venice Biennale Recognition (2022)', 'National Arts Merit Award (2020)'],
+                    social: { instagram: '#', twitter: '#', website: '#' }
+                },
+                { 
+                    id: 2, 
+                    name: 'Marcus Wei', 
+                    specialty: 'Digital Art & Animation',
+                    bio: 'Marcus Wei is a pioneering digital artist whose work bridges the gap between traditional artistic techniques and cutting-edge technology. Based in Tokyo, his immersive digital experiences have redefined the boundaries of contemporary art.',
+                    image: 'https://images.unsplash.com/photo-1686491698615-067e11027f06?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+                    awards: ['Digital Art Innovation Prize (2023)', 'Tokyo Media Arts Festival Award (2021)'],
+                    social: { instagram: '#', twitter: '#', website: '#' }
+                },
+                { 
+                    id: 3, 
+                    name: 'Sophia Johnson', 
+                    specialty: 'Photography & Mixed Media',
+                    bio: 'Sophia Johnson captures powerful moments through her lens, often combining photography with other mediums to create thought-provoking pieces. Her work explores themes of identity, memory, and social change.',
+                    image: 'https://images.unsplash.com/photo-1659029691699-1c8715601cf3?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+                    awards: ['International Photography Award (2023)', 'Contemporary Art Foundation Grant (2022)'],
+                    social: { instagram: '#', twitter: '#', website: '#' }
+                },
+                { 
+                    id: 4, 
+                    name: 'Aiden Parker', 
+                    specialty: 'Abstract Expressionism',
+                    bio: 'Aiden Parker creates bold, large-scale abstract works that evoke strong emotional responses. His experimental approach to color and texture has established him as a leading figure in contemporary abstract expressionism.',
+                    image: 'https://images.unsplash.com/photo-1676714228552-4ce64e779027?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+                    awards: ['Modern Art Prize (2024)', 'Artist of the Year, Contemporary Art Review (2022)'],
+                    social: { instagram: '#', twitter: '#', website: '#' }
+                }
+            ] }">
+                <template x-for="artist in artists" :key="artist.id">
+                    <div class="group bg-opacity-10 rounded-xl overflow-hidden transform transition-all duration-300 hover:-translate-y-2"
+                        :class="darkMode ? 'bg-white/5' : 'bg-gallery-dark/5'">
+                        <div class="relative overflow-hidden h-80">
+                            <img :src="artist.image" :alt="artist.name"
+                                class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                            <div
+                                class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
+                                <div class="flex gap-4">
+                                    <a href="#" @click.prevent
+                                        class="text-white hover:text-gallery-accent transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="currentColor"
+                                            viewBox="0 0 24 24">
+                                            <path
+                                                d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+                                        </svg>
+                                    </a>
+                                    <a href="#" @click.prevent
+                                        class="text-white hover:text-gallery-accent transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="currentColor"
+                                            viewBox="0 0 24 24">
+                                            <path
+                                                d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z" />
+                                        </svg>
+                                    </a>
+                                    <a href="#" @click.prevent
+                                        class="text-white hover:text-gallery-accent transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                                        </svg>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-6">
+                            <h3 class="font-serif text-xl mb-2" :class="darkMode ? 'text-white' : 'text-gallery-dark'"
+                                x-text="artist.name"></h3>
+                            <p class="text-gallery-accent mb-4" x-text="artist.specialty"></p>
+                            <p class="mb-4 text-sm leading-relaxed"
+                                :class="darkMode ? 'text-white/70' : 'text-gallery-dark/70'" x-text="artist.bio"></p>
+                            <div class="mb-4">
+                                <h4 class="font-semibold text-sm mb-2"
+                                    :class="darkMode ? 'text-white/90' : 'text-gallery-dark/90'">
+                                    Awards & Recognition:
+                                </h4>
+                                <ul class="space-y-1">
+                                    <template x-for="award in artist.awards" :key="award">
+                                        <li class="text-xs" :class="darkMode ? 'text-white/70' : 'text-gallery-dark/70'"
+                                            x-text="award"></li>
+                                    </template>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </section>
+
+    <section id="tour" class="py-20 relative overflow-hidden" ...>
+        <div class="absolute inset-0 z-0">
+            <div class="absolute inset-0 bg-black opacity-70"></div>
+            <img src="https://images.unsplash.com/photo-1711552466487-ac9afb5528cb?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+                alt="Gallery Interior" class="w-full h-full object-cover" />
+        </div>
+        </div>
+        <div class="container mx-auto px-4 relative z-10">
+            <div class="text-center mb-16">
+                <h2 class="font-serif text-3xl md:text-4xl lg:text-5xl mb-4 text-white">
+                    Virtual <span class="text-gallery-accent">Tour</span>
+                </h2>
+                <div class="w-24 h-1 bg-gallery-accent mx-auto mb-8"></div>
+                <p class="max-w-3xl mx-auto text-white/80 text-lg">
+                    Experience our gallery spaces in full 3D from the comfort of your home.
+                </p>
+            </div>
+            <div class="flex justify-center">
+                <div class="max-w-2xl w-full text-center">
+                    <button id="launch3DTourBtn" type="button"
+                        class="px-8 py-4 bg-gallery-accent text-white font-semibold rounded-full transition-transform hover:scale-105 shadow-lg">
+                        Launch 3D Gallery Tour
+                    </button>
+                    <p class="mt-4 text-white/60 text-sm">
+                        Navigate with mouse click/drag. Works best on desktop with WebGL support.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="comments" class="py-20" :class="darkMode ? 'bg-gallery-dark' : 'bg-white'">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-16">
+                <h2 class="font-serif text-3xl md:text-4xl lg:text-5xl mb-4"
+                    :class="darkMode ? 'text-white' : 'text-gallery-dark'">
+                    Art <span class="text-gallery-accent">Critique</span>
+                </h2>
+                <div class="w-24 h-1 bg-gallery-accent mx-auto mb-8"></div>
+                <p class="max-w-3xl mx-auto text-lg" :class="darkMode ? 'text-white/80' : 'text-gallery-dark/80'">
+                    Join the conversation about art. Share your thoughts and
+                    perspectives on the exhibited works.
+                </p>
+            </div>
+
+            <!-- Single x-data wrapper for the entire comments section -->
+            <div class="max-w-4xl mx-auto" x-data="{
+            // Form data
+            selectedArtwork: 'Urban Dreams',
+            commentText: '',
+            dropdownOpen: false,
+            
+            // Comments data
+            comments: [
+                { 
+                    id: 1, 
+                    user: 'ArtLover42', 
+                    artwork: 'Urban Dreams', 
+                    date: 'April 10, 2025', 
+                    content: 'The use of color in this piece is extraordinary. The way Martinez captures the essence of urban life while maintaining a dreamlike quality is truly masterful.', 
+                    likes: 24,
+                    isLiked: false
+                },
+                { 
+                    id: 2, 
+                    user: 'GalleryVisitor', 
+                    artwork: 'Digital Genesis', 
+                    date: 'April 8, 2025', 
+                    content: 'Weis digital work pushes boundaries in ways I havent seen before. The interplay between traditional techniques and digital manipulation creates a fascinating tension.', 
+                    likes: 17,
+                    isLiked: false
+                },
+                { 
+                    id: 3, 
+                    user: 'ArtHistorian', 
+                    artwork: 'Solitude', 
+                    date: 'April 5, 2025', 
+                    content: 'Johnsons exploration of isolation in this photography series resonates deeply in our connected yet disconnected world. The composition draws you in and forces introspection.', 
+                    likes: 32,
+                    isLiked: false
+                },
+                { 
+                    id: 4, 
+                    user: 'ModernArtFan', 
+                    artwork: 'Abstract Thoughts', 
+                    date: 'April 3, 2025', 
+                    content: 'Parkers ability to convey complex emotions through abstract forms is remarkable. The depth and layers in this piece reveal something new with each viewing.', 
+                    likes: 15,
+                    isLiked: false
+                },
+                { 
+                    id: 5, 
+                    user: 'GalleryOwner', 
+                    artwork: 'Bronze Age', 
+                    date: 'March 28, 2025', 
+                    content: 'Chens sculptural work demonstrates exceptional technical skill. The way light plays across the bronze surface creates an ever-changing experience as you move around the piece.', 
+                    likes: 19,
+                    isLiked: false
+                }
+            ],
+            
+            // Available artworks for selection
+            artworkOptions: [
+                'Urban Dreams',
+                'Digital Genesis', 
+                'Solitude',
+                'Abstract Thoughts',
+                'Bronze Age',
+                'Neon Lights',
+                'Fragmented Memory',
+                'Eternal Spring'
+            ],
+            
+            // Submit new comment
+            submitComment() {
+                if (!this.commentText.trim()) {
+                    showToast('Please enter your comment', 'error');
+                    return;
+                }
+                
+                if (this.commentText.length > 500) {
+                    showToast('Comment is too long. Please keep it under 500 characters.', 'error');
+                    return;
+                }
+                
+                const newComment = {
+                    id: Date.now(),
+                    user: 'Guest User',
+                    artwork: this.selectedArtwork,
+                    content: this.commentText.trim(),
+                    date: new Date().toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                    }),
+                    likes: 0,
+                    isLiked: false
+                };
+                
+                // Add to beginning of comments array
+                this.comments.unshift(newComment);
+                
+                // Reset form
+                this.commentText = '';
+                
+                // Show success message
+                showToast('Your comment has been posted successfully!', 'success');
+                
+                // Scroll to the new comment with highlight effect
+                this.$nextTick(() => {
+                    const commentsContainer = document.querySelector('#comments-list');
+                    if (commentsContainer) {
+                        const firstComment = commentsContainer.querySelector('div:first-child');
+                        if (firstComment) {
+                            firstComment.scrollIntoView({ 
+                                behavior: 'smooth', 
+                                block: 'center' 
+                            });
+                            
+                            // Add highlight effect
+                            const bgColor = this.darkMode ? 'rgba(231, 57, 70, 0.1)' : 'rgba(231, 57, 70, 0.05)';
+                            firstComment.style.backgroundColor = bgColor;
+                            firstComment.style.transition = 'background-color 0.3s ease';
+                            
+                            setTimeout(() => {
+                                firstComment.style.backgroundColor = '';
+                            }, 2000);
+                        }
+                    }
+                });
+            },
+            
+            // Toggle like on comment
+            toggleLike(commentId) {
+                const comment = this.comments.find(c => c.id === commentId);
+                if (!comment) return;
+                
+                if (comment.isLiked) {
+                    comment.likes--;
+                    comment.isLiked = false;
+                } else {
+                    comment.likes++;
+                    comment.isLiked = true;
+                    showToast('Comment liked!', 'success');
+                }
+            }
+        }">
+
+                <!-- Comment Form -->
+                <div class="mb-10 p-6 rounded-xl" :class="darkMode ? 'bg-white/5' : 'bg-gallery-dark/5'">
+                    <h3 class="font-serif text-xl mb-4" :class="darkMode ? 'text-white' : 'text-gallery-dark'">
+                        Share Your Thoughts
+                    </h3>
+
+                    <div>
+                        <!-- Artwork Selection Dropdown -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium mb-2"
+                                :class="darkMode ? 'text-white/80' : 'text-gallery-dark/80'">Select Artwork:</label>
+
+                            <div class="relative">
+                                <button type="button" @click="dropdownOpen = !dropdownOpen"
+                                    @click.away="dropdownOpen = false"
+                                    class="w-full p-3 rounded-lg bg-opacity-10 border flex justify-between items-center"
+                                    :class="darkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-gallery-dark/5 border-gallery-dark/10 text-gallery-dark'">
+                                    <span x-text="selectedArtwork"></span>
+                                    <svg class="h-5 w-5 transition-transform duration-200"
+                                        :class="dropdownOpen ? 'transform rotate-180' : ''"
+                                        xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd"
+                                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+
+                                <div x-show="dropdownOpen" x-transition:enter="transition ease-out duration-100"
+                                    x-transition:enter-start="transform opacity-0 scale-95"
+                                    x-transition:enter-end="transform opacity-100 scale-100"
+                                    x-transition:leave="transition ease-in duration-75"
+                                    x-transition:leave-start="transform opacity-100 scale-100"
+                                    x-transition:leave-end="transform opacity-0 scale-95"
+                                    class="absolute z-50 w-full mt-1 rounded-lg shadow-lg max-h-60 overflow-auto"
+                                    :class="darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'">
+                                    <ul class="py-1">
+                                        <template x-for="artwork in artworkOptions" :key="artwork">
+                                            <li>
+                                                <button type="button"
+                                                    @click="selectedArtwork = artwork; dropdownOpen = false"
+                                                    class="block w-full text-left px-4 py-2 hover:bg-opacity-10 transition-colors"
+                                                    :class="darkMode ? 'text-white hover:bg-white/10' : 'text-gallery-dark hover:bg-gallery-dark/10'">
+                                                    <span x-text="artwork"></span>
+                                                </button>
+                                            </li>
+                                        </template>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Comment Text Area -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium mb-2"
+                                :class="darkMode ? 'text-white/80' : 'text-gallery-dark/80'">Your Critique:</label>
+                            <textarea rows="5" class="w-full p-3 rounded-lg bg-opacity-10 border resize-none"
+                                :class="darkMode ? 'bg-white/5 border-white/10 text-white placeholder-white/50' : 'bg-gallery-dark/5 border-gallery-dark/10 text-gallery-dark placeholder-gallery-dark/50'"
+                                placeholder="Share your thoughts on this artwork..." x-model="commentText"
+                                @keydown.ctrl.enter="submitComment()" @keydown.cmd.enter="submitComment()"
+                                maxlength="500"></textarea>
+                            <div class="flex justify-between items-center mt-2">
+                                <p class="text-xs" :class="darkMode ? 'text-white/50' : 'text-gallery-dark/50'">
+                                    Tip: Press Ctrl+Enter (or Cmd+Enter on Mac) to submit quickly
+                                </p>
+                                <div class="text-sm" :class="darkMode ? 'text-white/60' : 'text-gallery-dark/60'">
+                                    <span x-text="commentText.length"></span>/500
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="flex items-center">
+                            <button @click="submitComment()"
+                                class="px-6 py-3 bg-gallery-accent text-white font-medium rounded-lg hover:bg-opacity-90 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
+                                :disabled="!commentText.trim()">
+                                <span class="flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                    </svg>
+                                    Post Comment
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Comments List -->
+                <div id="comments-list" class="space-y-6">
+                    <template x-for="comment in comments" :key="comment.id">
+                        <div class="p-6 rounded-xl transition-all duration-300 hover:shadow-lg"
+                            :class="darkMode ? 'bg-white/5 hover:bg-white/8' : 'bg-gallery-dark/5 hover:bg-gallery-dark/8'">
+                            <div class="flex justify-between items-start mb-3">
+                                <div class="flex items-center space-x-3">
+                                    <!-- User Avatar -->
+                                    <div
+                                        class="w-10 h-10 rounded-full bg-gallery-accent flex items-center justify-center text-white font-medium text-sm">
+                                        <span x-text="comment.user.charAt(0).toUpperCase()"></span>
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center space-x-2">
+                                            <span class="font-medium"
+                                                :class="darkMode ? 'text-white' : 'text-gallery-dark'"
+                                                x-text="comment.user"></span>
+                                            <span
+                                                class="text-xs px-2 py-1 rounded-full bg-gallery-accent/20 text-gallery-accent"
+                                                x-text="comment.artwork"></span>
+                                        </div>
+                                        <span class="text-xs"
+                                            :class="darkMode ? 'text-white/50' : 'text-gallery-dark/50'"
+                                            x-text="comment.date"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <p class="mb-4 text-sm leading-relaxed"
+                                :class="darkMode ? 'text-white/80' : 'text-gallery-dark/80'" x-text="comment.content">
+                            </p>
+
+                            <div class="flex items-center justify-between">
+                                <button @click="toggleLike(comment.id)"
+                                    class="flex items-center space-x-2 text-sm transition-all duration-200 hover:scale-105"
+                                    :class="{
+                                        'text-gallery-accent': comment.isLiked,
+                                        'text-white/70 hover:text-gallery-accent': darkMode && !comment.isLiked,
+                                        'text-gallery-dark/70 hover:text-gallery-accent': !darkMode && !comment.isLiked
+                                    }">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-all duration-200"
+                                        :class="comment.isLiked ? 'fill-current scale-110' : 'fill-none'"
+                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+                                    </svg>
+                                    <span x-text="comment.likes + (comment.likes === 1 ? ' like' : ' likes')"></span>
+                                </button>
+
+                                <div class="text-xs" :class="darkMode ? 'text-white/40' : 'text-gallery-dark/40'">
+                                    <span x-show="comment.user === 'Guest User'"
+                                        class="bg-blue-500/20 text-blue-400 px-2 py-1 rounded-full">New</span>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Empty state when no comments -->
+                    <div x-show="comments.length === 0" class="text-center py-12">
+                        <div class="text-6xl mb-4">💬</div>
+                        <h3 class="text-xl font-medium mb-2" :class="darkMode ? 'text-white' : 'text-gallery-dark'">
+                            No comments yet
+                        </h3>
+                        <p :class="darkMode ? 'text-white/60' : 'text-gallery-dark/60'">
+                            Be the first to share your thoughts on the artwork!
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="py-20 relative" :class="darkMode ? 'bg-black' : 'bg-gray-100'">
+        <div class="container mx-auto px-4">
+            <div class="max-w-4xl mx-auto text-center">
+                <h2 class="font-serif text-3xl md:text-4xl mb-4" :class="darkMode ? 'text-white' : 'text-gallery-dark'">
+                    Stay Updated with <span class="text-gallery-accent">Art News</span>
+                </h2>
+                <p class="mb-8 text-lg" :class="darkMode ? 'text-white/80' : 'text-gallery-dark/80'">
+                    Subscribe to our newsletter for exhibition updates, artist
+                    interviews, and special events.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                    <input type="email" placeholder="Your email address" class="px-6 py-3 rounded-full w-full sm:w-96"
+                        :class="darkMode ? 'bg-white/10 text-white border border-white/10 focus:border-gallery-accent' : 'bg-white text-gallery-dark border border-gallery-dark/10 focus:border-gallery-accent'" />
+                    <button @click="showToast('Thank you for subscribing!', 'success')"
+                        class="px-8 py-3 bg-gallery-accent text-white font-semibold rounded-full hover:bg-opacity-90 transition-colors">
+                        Subscribe
+                    </button>
+                </div>
+                <p class="mt-4 text-sm" :class="darkMode ? 'text-white/60' : 'text-gallery-dark/60'">
+                    We respect your privacy. Unsubscribe at any time.
+                </p>
+            </div>
+    </section>
+    <footer class="py-12" :class="darkMode ? 'bg-gallery-dark' : 'bg-gallery-dark text-white'">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+                <div>
+                    <h3 class="font-serif text-2xl text-white mb-6">
+                        ART<span class="text-gallery-accent">SPACE</span>
+                    </h3>
+                    <p class="text-white/70 mb-6">
+                        Celebrating art in all its forms. A virtual space for artists and
+                        art lovers to connect, explore, and be inspired.
+                    </p>
+                    <div class="flex space-x-4">
+                        <a href="#" @click.prevent class="text-white/70 hover:text-gallery-accent transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="currentColor"
+                                viewBox="0 0 24 24">
+                                <path
+                                    d="M22.675 0h-21.35c-.732 0-1.325.593-1.325 1.325v21.351c0 .731.593 1.324 1.325 1.324h11.495v-9.294h-3.128v-3.622h3.128v-2.671c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.795.143v3.24l-1.918.001c-1.504 0-1.795.715-1.795 1.763v2.313h3.587l-.467 3.622h-3.12v9.293h6.116c.73 0 1.323-.593 1.323-1.325v-21.35c0-.732-.593-1.325-1.325-1.325z" />
+                            </svg>
+                        </a>
+                        <a href="#" @click.prevent class="text-white/70 hover:text-gallery-accent transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="currentColor"
+                                viewBox="0 0 24 24">
+                                <path
+                                    d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+                            </svg>
+                        </a>
+                        <a href="#" @click.prevent class="text-white/70 hover:text-gallery-accent transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="text-white text-lg font-medium mb-6">Quick Links</h4>
+                    <ul class="space-y-3">
+                        <li>
+                            <a href="#" class="text-white/70 hover:text-gallery-accent transition-colors">Home</a>
+                        </li>
+                        <li>
+                            <a href="#featured"
+                                class="text-white/70 hover:text-gallery-accent transition-colors">Featured Art</a>
+                        </li>
+                        <li>
+                            <a href="#gallery"
+                                class="text-white/70 hover:text-gallery-accent transition-colors">Gallery</a>
+                        </li>
+                        <li>
+                            <a href="#artists"
+                                class="text-white/70 hover:text-gallery-accent transition-colors">Artists</a>
+                        </li>
+                        <li>
+                            <a href="#tour" class="text-white/70 hover:text-gallery-accent transition-colors">Virtual
+                                Tours</a>
+                        </li>
+                        <li>
+                            <a href="#comments" class="text-white/70 hover:text-gallery-accent transition-colors">Art
+                                Critique</a>
+                        </li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h4 class="text-white text-lg font-medium mb-6">Contact Us</h4>
+                    <ul class="space-y-3">
+                        <li class="flex items-start">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gallery-accent mt-0.5"
+                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span class="text-white/70">123 Art Gallery Lane<br />New York, NY 10001</span>
+                        </li>
+                        <li class="flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gallery-accent" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                            </svg>
+                            <span class="text-white/70">+1 (555) 123-4567</span>
+                        </li>
+                        <li class="flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gallery-accent" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                            <span class="text-white/70">info@artSphere.com</span>
+                        </li>
+                    </ul>
+                    <div class="mt-6">
+                        <h4 class="text-white text-lg font-medium mb-4">Opening Hours</h4>
+                        <p class="text-white/70">
+                            Tuesday - Sunday: 10AM - 6PM<br />Monday: Closed
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t border-white/10 pt-8 text-center">
+                <p class="text-white/60 text-sm">
+                    © 2025 ARTSPACE - Virtual Gallery. All rights reserved.
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <button id="backToTop"
+        class="fixed right-6 bottom-6 p-3 rounded-full shadow-lg z-50 transition-all duration-300 transform translate-y-20 opacity-0"
+        :class="darkMode ? 'bg-white text-gallery-dark hover:bg-gray-200' : 'bg-gallery-dark text-white hover:bg-gallery-dark/80'">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+        </svg>
+    </button>
+
+    <div x-show="artModal.open" x-cloak class="modal-hidden fixed inset-0 z-50 flex items-center justify-center p-4"
+        x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+        :class="{ 'backdrop-blur-sm': artModal.open }">
+        <div class="absolute inset-0 bg-black/80" @click="artModal.open = false"></div>
+        <div x-show="artModal.open" x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0 transform scale-95"
+            x-transition:enter-end="opacity-100 transform scale-100"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100 transform scale-100"
+            x-transition:leave-end="opacity-0 transform scale-95"
+            class="relative bg-white dark:bg-gallery-dark max-w-4xl w-full max-h-[90vh] overflow-auto rounded-xl shadow-2xl"
+            @click.away="artModal.open = false">
+            <button @click="artModal.open = false" class="absolute top-4 right-4 p-2 rounded-full"
+                :class="darkMode ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-gallery-dark/10 text-gallery-dark hover:bg-gallery-dark/20'">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+            <div class="grid grid-cols-1 md:grid-cols-2">
+                <div class="h-[50vh] md:h-auto">
+                    <img :src="artModal.artwork?.image || '/api/placeholder/600/600'" alt="Artwork"
+                        class="w-full h-full object-cover" />
+                </div>
+                <div class="p-6 md:p-8" :class="darkMode ? 'text-white' : 'text-gallery-dark bg-white'">
+                    <h3 class="font-serif text-2xl md:text-3xl mb-2"
+                        x-text="artModal.artwork?.title || 'Artwork Title'"></h3>
+                    <p class="text-gallery-accent mb-4" x-text="artModal.artwork?.artist || 'Artist Name'"></p>
+
+                    <div class="mb-6 space-y-3">
+                        <div class="flex items-center">
+                            <span class="w-24 text-sm font-medium"
+                                :class="darkMode ? 'text-white/70' : 'text-gallery-dark/70'">Year:</span>
+                            <span x-text="artModal.artwork?.year || '2025'"></span>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="w-24 text-sm font-medium"
+                                :class="darkMode ? 'text-white/70' : 'text-gallery-dark/70'">Medium:</span>
+                            <span x-text="artModal.artwork?.medium || 'Mixed Media'"></span>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="w-24 text-sm font-medium"
+                                :class="darkMode ? 'text-white/70' : 'text-gallery-dark/70'">Dimensions:</span>
+                            <span>100 x 80 cm</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <h4 class="text-lg font-medium mb-2">About the Artwork</h4>
+                        <p class="text-sm leading-relaxed" :class="darkMode ? 'text-white/80' : 'text-gallery-dark/80'"
+                            x-text="artModal.artwork?.description || 'A stunning piece that captures the essence of contemporary art through innovative techniques and thoughtful composition.'">
+                        </p>
+                    </div>
+
+                    <div class="mb-6">
+                        <h4 class="text-lg font-medium mb-2">Exhibition History</h4>
+                        <ul class="text-sm space-y-1" :class="darkMode ? 'text-white/80' : 'text-gallery-dark/80'">
+                            <li>Modern Expressions, New York, 2024</li>
+                            <li>Digital Frontiers, Tokyo, 2023</li>
+                            <li>Next Generation, Paris, 2022</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Markup for 3D Tour -->
+    <div id="demoModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 transition-opacity hidden">
+        <div class="relative w-full max-w-7xl h-[90vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+            <div class="px-6 py-4 flex justify-between items-center border-b border-gray-200 bg-white rounded-t-2xl">
+                <h3 class="text-xl font-semibold text-gray-800">3D Gallery Tour</h3>
+                <button id="closeDemoModal"
+                    class="text-gray-400 hover:text-gray-700 text-2xl font-bold focus:outline-none transition-colors">&times;</button>
+            </div>
+            <div class="flex-1 relative bg-gray-50">
+                <iframe id="demoModalIframe" class="absolute inset-0 w-full h-full border-none" src=""
+                    title="Demo Content"></iframe>
+                <div id="demoModalLoading" class="absolute inset-0 flex items-center justify-center bg-white/80 z-10"
+                    style="display:none;">
+                    <span class="text-gray-500 text-base">Loading demo...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        const launchBtn = document.getElementById('launch3DTourBtn');
+        const modal = document.getElementById('demoModal');
+        const closeBtn = document.getElementById('closeDemoModal');
+        const iframe = document.getElementById('demoModalIframe');
+        const loading = document.getElementById('demoModalLoading');
+
+        function openModal() {
+            modal.classList.remove('hidden');
+            loading.style.display = 'flex';
+            iframe.src = '3d-tour.html';
+            document.body.classList.add('modal-open');
+        }
+
+        function closeModal() {
+            modal.classList.add('hidden');
+            iframe.src = '';
+            document.body.classList.remove('modal-open');
+        }
+
+        launchBtn.addEventListener('click', openModal);
+        closeBtn.addEventListener('click', closeModal);
+
+        // Hide loading when iframe loads
+        iframe.addEventListener('load', () => {
+            loading.style.display = 'none';
+        });
+
+        // ESC key closes modal
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+
+</html>

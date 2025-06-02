@@ -1,0 +1,1665 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurant App</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Archivo:wght@300;400;500;600;700&family=Chivo:wght@300;400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #FF4D4D;
+            --primary-light: #FF7A7A;
+            --primary-dark: #E60000;
+            --bg-dark: #121212;
+            --bg-darker: #080808;
+            --bg-light: #1E1E1E;
+            --bg-lighter: #282828;
+            --text-light: #FFFFFF;
+            --text-muted: #B0B0B0;
+            --accent: #00D1D1;
+            --accent-light: #00F0F0;
+            --border: rgba(255, 255, 255, 0.1);
+            --transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Chivo', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            overflow-x: hidden;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            line-height: 1.6;
+            touch-action: pan-y;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4,
+        summary {
+            font-family: 'Archivo', sans-serif;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            line-height: 1.2;
+        }
+
+        .header-container {
+            position: relative;
+            height: 60vh;
+            min-height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            overflow: hidden;
+            background:
+                linear-gradient(to bottom, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.7)),
+                url('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D') center/cover no-repeat;
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 2;
+            padding: 2rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header-content h1 {
+            font-size: 4rem;
+            margin: 0;
+            background: linear-gradient(to right, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+        }
+
+        .header-content p {
+            font-size: 1.4rem;
+            color: var(--text-muted);
+            margin: 0;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+
+        /* Navigation */
+        nav {
+            background-color: var(--bg-dark);
+            padding: 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .nav-container {
+            display: flex;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        nav button {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 1.5rem 2rem;
+            cursor: pointer;
+            font-size: 1rem;
+            position: relative;
+            transition: var(--transition);
+            font-family: 'Archivo', sans-serif;
+            font-weight: 500;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            flex: 1;
+            text-align: center;
+        }
+
+        nav button::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 3px;
+            background: linear-gradient(to right, var(--primary), var(--accent));
+            transition: var(--transition);
+        }
+
+        nav button:hover {
+            color: var(--text-light);
+        }
+
+        nav button:hover::after {
+            width: 100%;
+        }
+
+        nav button.active {
+            color: var(--text-light);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        nav button.active::after {
+            width: 100%;
+        }
+
+        /* Section styling */
+        .section {
+            opacity: 0;
+            display: none;
+            transition: opacity 0.6s ease, transform 0.6s ease;
+            padding: 4rem 0;
+            transform: translateY(20px);
+        }
+
+        .section.active {
+            opacity: 1;
+            display: block;
+            transform: translateY(0);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        /* Collapsible menu sections */
+        .menu-category {
+            margin-bottom: 2rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: var(--transition);
+        }
+
+        .menu-category-header {
+            padding: 1.5rem;
+            background: var(--bg-light);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: var(--transition);
+        }
+
+        .menu-category-header:hover {
+            background: var(--bg-lighter);
+        }
+
+        .menu-category-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            color: var(--text-light);
+            display: flex;
+            align-items: center;
+        }
+
+        .menu-category-header h2::before {
+            content: '';
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background: var(--primary);
+            margin-right: 1rem;
+            border-radius: 50%;
+        }
+
+        .menu-category-header i {
+            transition: var(--transition);
+        }
+
+        .menu-category.active .menu-category-header i {
+            transform: rotate(180deg);
+        }
+
+        .menu-category-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s cubic-bezier(0.77, 0, 0.175, 1);
+        }
+
+        .menu-category.active .menu-category-content {
+            max-height: 2000px;
+        }
+
+        .menu-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            padding: 1.5rem;
+            background: var(--bg-dark);
+        }
+
+        .menu-item {
+            background: var(--bg-light);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: var(--transition);
+        }
+
+        .menu-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .item-image {
+            height: 180px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .item-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: var(--transition);
+        }
+
+        .menu-item:hover .item-image img {
+            transform: scale(1.05);
+        }
+
+        .item-image-placeholder,
+        .item-image-placeholder::before,
+        .item-image-placeholder::after {
+            display: none;
+        }
+
+        .item-details {
+            padding: 1.5rem;
+        }
+
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+
+        .item-name {
+            font-weight: 600;
+            font-size: 1.2rem;
+            color: var(--text-light);
+        }
+
+        .item-price {
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .item-description {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-top: 0.5rem;
+        }
+
+        .item-image-modal {
+            width: 100%;
+            height: 320px;
+            max-width: 480px;
+            margin: 1.5rem auto;
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .item-image-modal img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 12px;
+        }
+
+        /* Make sure modals stack properly */
+        .modal-overlay {
+            z-index: 1000;
+        }
+
+        #itemModalOverlay {
+            z-index: 1001;
+        }
+
+
+
+        /* Reservation form styling */
+        .reservation-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            width: 90%;
+        }
+
+        .reservation-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .reservation-header h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(to right, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .reservation-header p {
+            color: var(--text-muted);
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .reservation-form {
+            background: var(--bg-light);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 3rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 1rem;
+            background: var(--bg-lighter);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-light);
+            font-family: 'Chivo', sans-serif;
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(0, 209, 209, 0.2);
+        }
+
+        .form-row {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        .date-time-picker {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            width: 100%;
+        }
+
+
+        .date-picker,
+        .time-picker {
+            flex: 1;
+            min-width: 0;
+            width: 100%;
+        }
+
+
+        .date-picker-grid {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(35px, 1fr));
+            gap: 0.5rem;
+            width: 100%;
+        }
+
+        .time-slot-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(75px, 1fr));
+            gap: 0.5rem;
+            width: 100%;
+        }
+
+        .date-cell,
+        .time-slot {
+            padding: 0.7rem 0.2rem;
+            text-align: center;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.8rem;
+            min-width: 0;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .date-cell {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .date-cell small {
+            font-size: 0.6rem;
+            margin-top: 0.2rem;
+            display: block;
+        }
+
+        .day-header {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 0.4rem 0.1rem;
+            text-transform: uppercase;
+        }
+
+        .date-cell:hover,
+        .time-slot:hover {
+            background: var(--bg-lighter);
+        }
+
+        .date-cell.selected,
+        .time-slot.selected {
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+        }
+
+        .date-cell.disabled {
+            color: var(--text-muted);
+            cursor: not-allowed;
+            background-color: var(--bg-lighter);
+            opacity: 0.5;
+        }
+
+        .time-slot.disabled {
+            color: var(--text-muted);
+            cursor: not-allowed;
+            background-color: var(--bg-lighter);
+            opacity: 0.5;
+        }
+
+        .day-header {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 0.3rem 0.1rem;
+            text-transform: uppercase;
+        }
+
+        /* Form buttons */
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            border-radius: 6px;
+            font-family: 'Archivo', sans-serif;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+            font-size: 0.9rem;
+            flex: 1;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: linear-gradient(to right, var(--primary), var(--primary-light));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 77, 77, 0.4);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-light);
+        }
+
+        /* Contact form section */
+        .contact-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .contact-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .contact-header h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(to right, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .contact-header p {
+            color: var(--text-muted);
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .contact-form {
+            background: var(--bg-light);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2.5rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Footer */
+        footer {
+            background: var(--bg-darker);
+            color: var(--text-muted);
+            padding: 3rem 0;
+            margin-top: auto;
+            border-top: 1px solid var(--border);
+        }
+
+        .footer-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+        }
+
+        .footer-column h3 {
+            color: var(--text-light);
+            margin-bottom: 1.5rem;
+            font-size: 1.2rem;
+            position: relative;
+            display: inline-block;
+        }
+
+        .footer-column h3::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 30px;
+            height: 2px;
+            background: var(--primary);
+        }
+
+        .footer-column ul {
+            list-style: none;
+        }
+
+        .footer-column li {
+            margin-bottom: 0.8rem;
+        }
+
+        .footer-column a {
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: var(--transition);
+            display: inline-block;
+        }
+
+        .footer-column a:hover {
+            color: var(--primary);
+            transform: translateX(5px);
+        }
+
+        .social-links {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .social-links a {
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            transition: var(--transition);
+        }
+
+        .social-links a:hover {
+            color: var(--primary);
+            transform: translateY(-3px);
+        }
+
+        .copyright {
+            grid-column: 1 / -1;
+            text-align: center;
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border);
+            font-size: 0.9rem;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: var(--transition);
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: var(--bg-light);
+            border-radius: 12px;
+            max-width: 600px;
+            width: 90%;
+            padding: 2.5rem;
+            text-align: center;
+            transform: translateY(20px);
+            transition: var(--transition);
+            border: 1px solid var(--border);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+
+        .modal-title {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            color: var(--text-light);
+        }
+
+        .modal-text {
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+        }
+
+        /* Hide scrollbar for all browsers */
+        html,
+        body {
+            scrollbar-width: none;
+            /* Firefox */
+            -ms-overflow-style: none;
+            /* IE and Edge */
+        }
+
+        html::-webkit-scrollbar,
+        body::-webkit-scrollbar {
+            display: none;
+            /* Chrome, Safari, Opera */
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .header-content h1 {
+                font-size: 2.5rem;
+            }
+
+            .header-content p {
+                font-size: 1.1rem;
+            }
+
+            .nav-container {
+                flex-direction: column;
+            }
+
+            nav button {
+                width: 100%;
+                padding: 1rem;
+            }
+
+            .container {
+                padding: 0 1rem;
+            }
+
+            .form-row {
+                flex-direction: column;
+                gap: 1.5rem;
+            }
+
+            .date-time-picker {
+                flex-direction: column;
+            }
+
+            .menu-items {
+                grid-template-columns: 1fr;
+            }
+
+            .date-picker-grid {
+                grid-template-columns: repeat(7, minmax(30px, 1fr));
+                min-height: 220px;
+            }
+
+            .time-slot-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 550px) {
+            .date-picker-grid {
+                grid-template-columns: repeat(7, minmax(25px, 1fr));
+                min-height: 200px;
+            }
+
+            .time-slot-grid {
+                grid-template-columns: repeat(2, minmax(80px, 1fr));
+            }
+
+            .date-cell,
+            .time-slot {
+                padding: 0.4rem 0.1rem;
+                font-size: 0.7rem;
+                min-height: 35px;
+            }
+
+            .date-cell small {
+                font-size: 0.55rem;
+            }
+
+            .day-header {
+                font-size: 0.6rem;
+            }
+
+            .reservation-form {
+                padding: 1.5rem;
+            }
+
+            .form-actions {
+                flex-direction: column;
+                gap: 0.75rem;
+                margin-top: 1.5rem;
+            }
+
+            .btn {
+                padding: 0.8rem 1rem;
+                font-size: 0.85rem;
+            }
+
+            .date-time-picker {
+                margin-bottom: 1rem;
+            }
+
+            .form-group {
+                margin-bottom: 1rem;
+            }
+
+            select#guests {
+                padding: 1rem;
+                min-height: 48px;
+            }
+
+            select#guests option {
+                padding: 15px 12px;
+                font-size: 1rem;
+                line-height: 1.5;
+                /* Better spacing */
+            }
+        }
+
+        @media (max-width: 374px) {
+            .header-content h1 {
+                font-size: 2rem;
+            }
+
+            .header-content p {
+                font-size: 1rem;
+            }
+
+            .reservation-form,
+            .contact-form {
+                padding: 1.5rem;
+            }
+
+            .date-picker-grid {
+                grid-template-columns: repeat(7, minmax(20px, 1fr));
+                min-height: 100px;
+            }
+
+            .time-slot-grid {
+                grid-template-columns: repeat(2, minmax(70px, 1fr));
+            }
+
+            .date-cell,
+            .time-slot {
+                padding: 0.3rem 0.1rem;
+                font-size: 0.65rem;
+                min-height: 30px;
+            }
+
+            .date-cell small {
+                font-size: 0.5rem;
+            }
+
+            .day-header {
+                font-size: 0.55rem;
+                padding: 0.2rem 0;
+            }
+
+            .form-actions {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+
+            .menu-item {
+                min-width: 0;
+            }
+
+            .item-image-placeholder {
+                height: 150px;
+            }
+
+
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.6s ease-out forwards;
+        }
+
+        .slide-up {
+            animation: slideUp 0.6s ease-out forwards;
+        }
+
+        @media (min-width: 768px) and (max-width: 830px) {
+            .date-time-picker {
+                flex-direction: column;
+                gap: 1.5rem;
+            }
+
+            .date-picker,
+            .time-picker {
+                width: 100%;
+                max-width: 100%;
+            }
+
+            .time-slot-grid {
+                grid-template-columns: repeat(4, minmax(70px, 1fr));
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header-container">
+        <div class="header-content slide-up">
+            <h1>ELEVATE</h1>
+            <p>Redefining modern gastronomy</p>
+        </div>
+    </div>
+
+    <nav>
+        <div class="nav-container">
+            <button id="menuBtn" class="active">
+                <i class="fas fa-utensils"></i> Menu
+            </button>
+            <button id="reserveBtn">
+                <i class="fas fa-calendar-alt"></i> Reservations
+            </button>
+            <button id="contactBtn">
+                <i class="fas fa-envelope"></i> Contact
+            </button>
+        </div>
+    </nav>
+
+    <div id="menuSection" class="section active">
+        <div class="container">
+            <div class="menu-category active">
+                <div class="menu-category-header">
+                    <h2>Starters</h2>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="menu-category-content">
+                    <div class="menu-items">
+                        <div class="menu-item slide-up" style="animation-delay: 0.1s">
+                            <div class="item-image">
+                                <img src="https://images.unsplash.com/photo-1620894580123-466ad3a0ca06?q=80&w=3024&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+                                    alt="Ocean Crudo">
+                            </div>
+                            <div class="item-details">
+                                <div class="item-header">
+                                    <span class="item-name">Ocean Crudo</span>
+                                    <span class="item-price">$18</span>
+                                </div>
+                                <p class="item-description">
+                                    Market fish, citrus, chili, mint
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="menu-item slide-up" style="animation-delay: 0.2s">
+                            <div class="item-image">
+                                <img src="https://images.pexels.com/photos/14064601/pexels-photo-14064601.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
+                                    alt="Hertiage Beet">
+                            </div>
+                            <div class="item-details">
+                                <div class="item-header">
+                                    <span class="item-name">Heritage Beet</span>
+                                    <span class="item-price">$16</span>
+                                </div>
+                                <p class="item-description">
+                                    Goat cheese, pistachio, honey
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="menu-item slide-up" style="animation-delay: 0.3s">
+                            <div class="item-image">
+                                <img src="https://cdn.pixabay.com/photo/2017/04/07/08/51/steak-2210465_1280.jpg"
+                                    alt="Foie Gras">
+                            </div>
+                            <div class="item-details">
+                                <div class="item-header">
+                                    <span class="item-name">Foie Gras</span>
+                                    <span class="item-price">$24</span>
+                                </div>
+                                <p class="item-description">
+                                    Brioche, cherry, almond
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="menu-category">
+                <div class="menu-category-header">
+                    <h2>Mains</h2>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="menu-category-content">
+                    <div class="menu-items">
+                        <div class="menu-item">
+                            <div class="item-image">
+                                <img src="https://cdn.pixabay.com/photo/2018/11/16/11/37/steak-3819248_1280.jpg"
+                                    alt="Dry Aged Ribeye">
+                            </div>
+                            <div class="item-details">
+                                <div class="item-header">
+                                    <span class="item-name">Dry Aged Ribeye</span>
+                                    <span class="item-price">$48</span>
+                                </div>
+                                <p class="item-description">
+                                    12oz, bone marrow, smoked potato
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="menu-item">
+                            <div class="item-image">
+                                <img src="https://images.pexels.com/photos/842142/pexels-photo-842142.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
+                                    alt="Wild Halibut">
+                            </div>
+                            <div class="item-details">
+                                <div class="item-header">
+                                    <span class="item-name">Wild Halibut</span>
+                                    <span class="item-price">$42</span>
+                                </div>
+                                <p class="item-description">
+                                    Shellfish broth, spring vegetables
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="menu-item">
+                            <div class="item-image">
+                                <img src="https://images.unsplash.com/photo-1513623954575-263b061498a3?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+                                    alt="Duck Confit">
+                            </div>
+                            <div class="item-details">
+                                <div class="item-header">
+                                    <span class="item-name">Duck Confit</span>
+                                    <span class="item-price">$38</span>
+                                </div>
+                                <p class="item-description">
+                                    Black garlic, forbidden rice, plum
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="menu-category">
+                <div class="menu-category-header">
+                    <h2>Desserts</h2>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="menu-category-content">
+                    <div class="menu-items">
+                        <div class="menu-item">
+                            <div class="item-image">
+                                <img src="https://images.pexels.com/photos/6036371/pexels-photo-6036371.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
+                                    alt="Chocolate Sphere">
+                            </div>
+                            <div class="item-details">
+                                <div class="item-header">
+                                    <span class="item-name">Chocolate Sphere</span>
+                                    <span class="item-price">$14</span>
+                                </div>
+                                <p class="item-description">
+                                    72% Guanaja, caramel, sea salt
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="menu-item">
+                            <div class="item-image">
+                                <img src="https://images.pexels.com/photos/13878326/pexels-photo-13878326.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
+                                    alt="Yuzu Soufflé">
+                            </div>
+                            <div class="item-details">
+                                <div class="item-header">
+                                    <span class="item-name">Yuzu Soufflé</span>
+                                    <span class="item-price">$16</span>
+                                </div>
+                                <p class="item-description">
+                                    White chocolate, matcha, raspberry
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="menu-item">
+                            <div class="item-image">
+                                <img src="https://cdn.pixabay.com/photo/2015/12/26/11/08/kaseplatte-1108564_1280.jpg"
+                                    alt="Cheese Selection">
+                            </div>
+                            <div class="item-details">
+                                <div class="item-header">
+                                    <span class="item-name">Cheese Selection</span>
+                                    <span class="item-price">$18</span>
+                                </div>
+                                <p class="item-description">
+                                    Artisanal cheeses, accompaniments
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="reserveSection" class="section">
+        <div class="container">
+            <div class="reservation-container">
+                <div class="reservation-header slide-up">
+                    <h2>Reserve Your Table</h2>
+                    <p>Experience culinary excellence in our intimate dining space</p>
+                </div>
+
+                <div class="reservation-form slide-up" style="animation-delay: 0.2s">
+                    <form id="reservationForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="name">Full Name</label>
+                                <input type="text" id="name" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="email">Email</label>
+                                <input type="email" id="email" class="form-control" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="phone">Phone</label>
+                                <input type="tel" id="phone" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="guests">Guests</label>
+                                <input type="number" id="guests" class="form-control" required min="1" max="10"
+                                    placeholder="Guests (max 10)">
+                                <small id="guestsError" style="color: var(--primary); display: none;">Please enter a
+                                    number between 1 and 10.</small>
+                            </div>
+                            <script>
+                                // Guests field validation
+                                const guestsInput = document.getElementById('guests');
+                                const guestsError = document.getElementById('guestsError');
+                                guestsInput.addEventListener('input', function () {
+                                    const value = parseInt(this.value, 10);
+                                    if (isNaN(value) || value < 1 || value > 10) {
+                                        this.style.borderColor = 'var(--primary)';
+                                        guestsError.style.display = 'block';
+                                    } else {
+                                        this.style.borderColor = '';
+                                        guestsError.style.display = 'none';
+                                    }
+                                });
+
+                                // Add to reservation form validation
+                                const reservationForm = document.getElementById('reservationForm');
+                                reservationForm.addEventListener('submit', function (e) {
+                                    const value = parseInt(guestsInput.value, 10);
+                                    if (isNaN(value) || value < 1 || value > 10) {
+                                        guestsInput.style.borderColor = 'var(--primary)';
+                                        guestsError.style.display = 'block';
+                                        e.preventDefault();
+                                    }
+                                });
+                            </script>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Date & Time</label>
+                            <div class="date-time-picker" id="dateTimePicker">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="specialRequests">Special Requests</label>
+                            <textarea id="specialRequests" class="form-control" rows="3"></textarea>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-check"></i> Confirm Reservation
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="contactSection" class="section">
+        <div class="container">
+            <div class="contact-container">
+                <div class="contact-header slide-up">
+                    <h2>Contact Us</h2>
+                    <p>We'd love to hear from you. Send us a message below.</p>
+                </div>
+
+                <div class="contact-form slide-up" style="animation-delay: 0.2s">
+                    <form id="contactForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="contactName">Name</label>
+                                <input type="text" id="contactName" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="contactEmail">Email</label>
+                                <input type="email" id="contactEmail" class="form-control" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="contactSubject">Subject</label>
+                            <input type="text" id="contactSubject" class="form-control" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="contactMessage">Message</label>
+                            <textarea id="contactMessage" class="form-control" rows="5" required></textarea>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="reset" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Clear
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane"></i> Send Message
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="footer-container">
+            <div class="footer-column">
+                <h3>ELEVATE</h3>
+                <p>Redefining modern gastronomy through innovative techniques and exceptional ingredients.</p>
+                <div class="social-links">
+                    <a href="#"><i class="fab fa-instagram"></i></a>
+                    <a href="#"><i class="fab fa-facebook-f"></i></a>
+                    <a href="#"><i class="fab fa-twitter"></i></a>
+                </div>
+            </div>
+
+            <div class="footer-column">
+                <h3>Hours</h3>
+                <ul>
+                    <li>Tuesday - Thursday: 5PM - 10PM</li>
+                    <li>Friday - Saturday: 5PM - 11PM</li>
+                    <li>Sunday: 5PM - 9PM</li>
+                    <li>Monday: Closed</li>
+                </ul>
+            </div>
+
+            <div class="footer-column">
+                <h3>Contact</h3>
+                <ul>
+                    <li><i class="fas fa-phone"></i> (212) 555-7878</li>
+                    <li><i class="fas fa-envelope"></i> reservations@elevate.com</li>
+                    <li><i class="fas fa-map-marker-alt"></i> 123 Culinary Ave, New York, NY</li>
+                </ul>
+            </div>
+
+            <div class="footer-column">
+                <h3>Newsletter</h3>
+                <p>Subscribe for exclusive events and menu updates.</p>
+                <div class="form-group">
+                    <input type="email" class="form-control" placeholder="Your email">
+                    <button class="btn btn-primary" style="margin-top: 0.5rem; padding: 0.8rem;">Subscribe</button>
+                </div>
+            </div>
+
+            <div class="copyright">
+                <p>&copy; 2023 ELEVATE Restaurant. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-content">
+            <div class="modal-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <h3 class="modal-title">Reservation Confirmed</h3>
+            <p class="modal-text">Thank you for choosing ELEVATE. We look forward to welcoming you.</p>
+            <p class="modal-text">A confirmation has been sent to your email.</p>
+            <button class="btn btn-primary" id="closeModal">Continue</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="itemModalOverlay">
+        <div class="modal-content">
+            <h3 class="modal-title" id="itemModalTitle">Item Name</h3>
+            <div class="item-image-modal" style="height:320px; max-width:480px; margin:1.5rem auto;">
+                <img src="" alt="" id="itemModalImage"
+                    style="height:100%; width:100%; object-fit:cover; border-radius:12px;" />
+            </div>
+            <p class="modal-text" id="itemModalDescription">Item description goes here</p>
+            <p class="modal-text" id="itemModalPrice" style="color: var(--primary); font-weight: 600;">$0</p>
+            <button class="btn btn-primary" id="closeItemModal">Close</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+    <script>
+        // DOM Elements
+        const menuBtn = document.getElementById('menuBtn');
+        const reserveBtn = document.getElementById('reserveBtn');
+        const contactBtn = document.getElementById('contactBtn');
+        const menuSection = document.getElementById('menuSection');
+        const reserveSection = document.getElementById('reserveSection');
+        const contactSection = document.getElementById('contactSection');
+        const contactForm = document.getElementById('contactForm');
+        const dateTimePicker = document.getElementById('dateTimePicker');
+        const modalOverlay = document.getElementById('modalOverlay');
+        const closeModal = document.getElementById('closeModal');
+        const menuCategories = document.querySelectorAll('.menu-category');
+
+        // Navigation
+        function showSection(sectionToShow) {
+            const currentActive = document.querySelector('.section.active');
+            if (currentActive) {
+                currentActive.classList.remove('active');
+                setTimeout(() => {
+                    currentActive.style.display = 'none';
+                    sectionToShow.style.display = 'block';
+                    setTimeout(() => {
+                        sectionToShow.classList.add('active');
+                        window.scrollTo({
+                            top: 0,
+                            behavior: 'smooth'
+                        });
+                    }, 10);
+                }, 300);
+            } else {
+                sectionToShow.style.display = 'block';
+                setTimeout(() => {
+                    sectionToShow.classList.add('active');
+                }, 10);
+            }
+        }
+
+        menuBtn.addEventListener('click', () => {
+            showSection(menuSection);
+            menuBtn.classList.add('active');
+            reserveBtn.classList.remove('active');
+            contactBtn.classList.remove('active');
+        });
+
+        reserveBtn.addEventListener('click', () => {
+            showSection(reserveSection);
+            reserveBtn.classList.add('active');
+            menuBtn.classList.remove('active');
+            contactBtn.classList.remove('active');
+        });
+
+        contactBtn.addEventListener('click', () => {
+            showSection(contactSection);
+            contactBtn.classList.add('active');
+            menuBtn.classList.remove('active');
+            reserveBtn.classList.remove('active');
+        });
+
+        // Collapsible menu sections
+        menuCategories.forEach(category => {
+            const header = category.querySelector('.menu-category-header');
+            header.addEventListener('click', () => {
+                category.classList.toggle('active');
+            });
+        });
+
+        // Date and Time Picker
+        function generateDatePicker() {
+            const today = new Date();
+            const nextTwoWeeks = [];
+
+            // Generate dates for next 14 days
+            for (let i = 0; i < 14; i++) {
+                const date = new Date();
+                date.setDate(today.getDate() + i);
+                nextTwoWeeks.push(date);
+            }
+
+            // Group dates by day of week
+            const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+            // Create date picker HTML
+            let datePickerHTML = `
+                <div class="date-picker">
+                    <div class="date-picker-header">
+                        <h3>Date</h3>
+                    </div>
+                    <div class="date-picker-grid">
+            `;
+
+            // Add day headers
+            days.forEach(day => {
+                datePickerHTML += `<div class="day-header">${day}</div>`;
+            });
+
+            // Add dates
+            nextTwoWeeks.forEach((date, index) => {
+                const dayOfWeek = date.getDay();
+                const dateNum = date.getDate();
+                const month = months[date.getMonth()];
+
+                // For demo purposes, mark some dates as unavailable
+                const isUnavailable = dayOfWeek === 0 || (dayOfWeek === 6 && index % 3 === 0);
+
+                datePickerHTML += `
+                    <div class="date-cell ${isUnavailable ? 'disabled' : ''} ${index === 2 ? 'selected' : ''}" 
+                        data-date="${date.toISOString().split('T')[0]}">
+                        ${dateNum}
+                        <small>${index === 0 ? 'Today' : index === 1 ? 'Tmrw' : month}</small>
+                    </div>
+                `;
+            });
+
+            datePickerHTML += `</div></div>`;
+
+            // Create time picker HTML
+            const timeSlots = [
+                '5:00', '5:30', '6:00', '6:30',
+                '7:00', '7:30', '8:00', '8:30',
+                '9:00', '9:30', '10:00'
+            ];
+
+            let timePickerHTML = `
+                <div class="time-picker">
+                    <div class="time-picker-header">
+                        <h3>Time</h3>
+                    </div>
+                    <div class="time-slot-grid">
+            `;
+
+            timeSlots.forEach((time, index) => {
+                // For demo purposes, mark some times as unavailable
+                const isUnavailable = index % 4 === 0;
+
+                timePickerHTML += `
+                    <div class="time-slot ${isUnavailable ? 'disabled' : ''} ${index === 3 ? 'selected' : ''}">
+                        ${time}
+                    </div>
+                `;
+            });
+
+            timePickerHTML += `</div></div>`;
+
+            // Combine and insert into DOM
+            dateTimePicker.innerHTML = datePickerHTML + timePickerHTML;
+
+            // Add event listeners to date and time cells
+            document.querySelectorAll('.date-cell:not(.disabled)').forEach(cell => {
+                cell.addEventListener('click', function () {
+                    document.querySelector('.date-cell.selected')?.classList.remove('selected');
+                    this.classList.add('selected');
+                });
+            });
+
+            document.querySelectorAll('.time-slot:not(.disabled)').forEach(slot => {
+                slot.addEventListener('click', function () {
+                    document.querySelector('.time-slot.selected')?.classList.remove('selected');
+                    this.classList.add('selected');
+                });
+            });
+        }
+
+        // Form submissions
+        reservationForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            // Validate form
+            let isValid = true;
+            const requiredInputs = reservationForm.querySelectorAll('[required]');
+
+            requiredInputs.forEach(input => {
+                if (!input.value) {
+                    input.style.borderColor = 'var(--primary)';
+                    isValid = false;
+                } else {
+                    input.style.borderColor = '';
+                }
+            });
+
+            if (isValid) {
+                document.querySelector('.modal-title').textContent = 'Reservation Confirmed';
+                document.querySelector('.modal-text').innerHTML = 'Thank you for choosing ELEVATE. We look forward to welcoming you.';
+                document.querySelector('.modal-icon').innerHTML = '<i class="fas fa-check-circle"></i>';
+                modalOverlay.classList.add('active');
+                reservationForm.reset();
+            }
+        });
+
+        contactForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            let isValid = true;
+            const requiredInputs = contactForm.querySelectorAll('[required]');
+
+            requiredInputs.forEach(input => {
+                if (!input.value) {
+                    input.style.borderColor = 'var(--primary)';
+                    isValid = false;
+                } else {
+                    input.style.borderColor = '';
+                }
+            });
+
+            if (isValid) {
+                document.querySelector('.modal-title').textContent = 'Message Sent';
+                document.querySelector('.modal-text').innerHTML = 'Thank you for contacting us. We will get back to you soon.';
+                document.querySelector('.modal-icon').innerHTML = '<i class="fas fa-paper-plane"></i>';
+
+                modalOverlay.classList.add('active');
+
+                contactForm.reset();
+            }
+        });
+
+        closeModal.addEventListener('click', () => {
+            modalOverlay.classList.remove('active');
+        });
+
+        generateDatePicker();
+
+
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', function () {
+                const name = item.querySelector('.item-name').textContent;
+                const price = item.querySelector('.item-price').textContent;
+                const description = item.querySelector('.item-description').textContent;
+                const imgSrc = item.querySelector('.item-image img').src;
+
+                document.getElementById('itemModalTitle').textContent = name;
+                document.getElementById('itemModalPrice').textContent = price;
+                document.getElementById('itemModalDescription').textContent = description;
+                document.getElementById('itemModalImage').src = imgSrc;
+                document.getElementById('itemModalImage').alt = name;
+
+                document.getElementById('itemModalOverlay').classList.add('active');
+            });
+
+            item.addEventListener('click', function () {
+                const name = item.querySelector('.item-name').textContent;
+                const price = item.querySelector('.item-price').textContent;
+                const description = item.querySelector('.item-description').textContent;
+
+                document.getElementById('itemModalTitle').textContent = name;
+                document.getElementById('itemModalPrice').textContent = price;
+                document.getElementById('itemModalDescription').textContent = description;
+
+                document.getElementById('itemModalOverlay').classList.add('active');
+            });
+        });
+
+        document.getElementById('closeItemModal').addEventListener('click', function () {
+            document.getElementById('itemModalOverlay').classList.remove('active');
+        });
+
+
+        // Swipe navigation
+        const body = document.body;
+        const hammer = new Hammer(body);
+
+        hammer.on('swipeleft', function () {
+            if (menuSection.classList.contains('active')) {
+                showSection(reserveSection);
+                reserveBtn.classList.add('active');
+                menuBtn.classList.remove('active');
+                contactBtn.classList.remove('active');
+            } else if (reserveSection.classList.contains('active')) {
+                showSection(contactSection);
+                contactBtn.classList.add('active');
+                reserveBtn.classList.remove('active');
+                menuBtn.classList.remove('active');
+            }
+        });
+
+        hammer.on('swiperight', function () {
+            if (contactSection.classList.contains('active')) {
+                showSection(reserveSection);
+                reserveBtn.classList.add('active');
+                contactBtn.classList.remove('active');
+                menuBtn.classList.remove('active');
+            } else if (reserveSection.classList.contains('active')) {
+                showSection(menuSection);
+                menuBtn.classList.add('active');
+                reserveBtn.classList.remove('active');
+                contactBtn.classList.remove('active');
+            }
+        });
+
+        // Animate elements when they come into view
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('fade-in');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.menu-category, .menu-item, .reservation-header, .reservation-form, .contact-header, .contact-form').forEach(el => {
+            observer.observe(el);
+        });
+    </script>
+</body>
+
+</html>

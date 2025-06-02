@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Modern Virtual Art Gallery</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #f0f0f0;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* Loading indicator */
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+            color: #333;
+            z-index: 1000;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loading"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <script>
+
+        // Create scene
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xeeeeee);
+
+        // Create camera
+        const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(15, 25, 15);
+
+        // Create renderer
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // Hide loading indicator
+        document.getElementById('loading').style.display = 'none';
+
+        // Create controls AFTER renderer is created
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 12, 0);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI / 2;
+        controls.minPolarAngle = Math.PI / 2;
+        controls.enablePan = false;
+        controls.maxDistance = 35;
+
+
+        function onWindowResize() {
+
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+
+        }
+
+        window.addEventListener('resize', onWindowResize);
+
+        const roomWidth = 80;
+        const roomHeight = 40;
+        const roomDepth = 95;
+
+        const textureLoader = new THREE.TextureLoader();
+
+        // Load textures
+        const wallTexture = textureLoader.load(
+            "https://images.unsplash.com/photo-1533628635777-112b2239b1c7?q=80&w=2940&auto=format&fit=crop",
+            undefined,
+        );
+
+        const floorTexture = textureLoader.load(
+            "https://images.unsplash.com/photo-1690983320828-c01b88baacb0?q=80&w=2940&auto=format&fit=crop",
+            undefined,
+        );
+
+        const wallMaterial = new THREE.MeshStandardMaterial({
+            map: wallTexture,
+            roughness: 0.4,
+            metalness: 0.0
+        });
+
+        const floorMaterial = new THREE.MeshStandardMaterial({
+            map: floorTexture,
+            roughness: 0.6,
+            metalness: 0.0
+        });
+
+        function createWall(width, height, depth, material, x, y, z, rotationY = 0) {
+            const geometry = new THREE.BoxGeometry(width, height, depth);
+            const wall = new THREE.Mesh(geometry, material);
+            wall.position.set(x, y, z);
+            wall.rotation.y = rotationY;
+            scene.add(wall);
+            return wall;
+        }
+
+        // Create room
+        createWall(roomWidth, 0.1, roomDepth, floorMaterial, 0, 0, 0);
+        createWall(roomWidth, 0.1, roomDepth, wallMaterial, 0, roomHeight, 0);
+        createWall(roomWidth, roomHeight, 0.1, wallMaterial, 0, roomHeight / 2, -roomDepth / 2);
+        createWall(roomWidth, roomHeight, 0.1, wallMaterial, 0, roomHeight / 2, roomDepth / 2);
+        createWall(0.1, roomHeight, roomDepth, wallMaterial, -roomWidth / 2, roomHeight / 2, 0);
+        createWall(0.1, roomHeight, roomDepth, wallMaterial, roomWidth / 2, roomHeight / 2, 0);
+
+        // Add lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+
+        function createGalleryLights() {
+            const lightHeight = roomHeight - 3;
+            const lightColor = 0xfff5e6;
+            const intensity = 0.2;
+
+            const positions = [
+                { x: -roomWidth / 3, z: -roomDepth / 3 },
+                { x: roomWidth / 3, z: -roomDepth / 3 },
+                { x: -roomWidth / 3, z: roomDepth / 3 },
+                { x: roomWidth / 3, z: roomDepth / 3 }
+            ];
+
+            positions.forEach(pos => {
+                const light = new THREE.DirectionalLight(lightColor, intensity);
+                light.position.set(pos.x, lightHeight, pos.z);
+                light.target.position.set(0, roomHeight / 3, 0);
+                scene.add(light);
+                scene.add(light.target);
+
+                const fillLight = new THREE.PointLight(lightColor, intensity / 3, 20);
+                fillLight.position.set(pos.x, lightHeight - 2, pos.z);
+                scene.add(fillLight);
+            });
+        }
+        createGalleryLights();
+
+        const artworks = [
+            { id: 1, title: 'Urban Dreams', artist: 'Elena Martinez', category: 'painting', size: 'large', image: 'https://images.unsplash.com/photo-1549289524-06cf8837ace5?w=800&h=800&fit=crop&q=80' },
+            { id: 2, title: 'Digital Genesis', artist: 'Marcus Wei', category: 'digital', size: 'normal', image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400&h=400&fit=crop&q=80' },
+            { id: 3, title: 'Solitude', artist: 'Sophia Johnson', category: 'photography', size: 'tall', image: 'https://images.unsplash.com/photo-1496449903678-68ddcb189a24?w=400&h=800&fit=crop&q=80' },
+            { id: 4, title: 'Abstract Thoughts', artist: 'Aiden Parker', category: 'painting', size: 'normal', image: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=400&h=400&fit=crop&q=80' },
+            { id: 5, title: 'Bronze Age', artist: 'Julia Chen', category: 'sculpture', size: 'wide', image: 'https://images.unsplash.com/photo-1575224300306-1b8da36134ec?w=800&h=400&fit=crop&q=80' },
+            { id: 6, title: 'Neon Lights', artist: 'Marcus Wei', category: 'digital', size: 'normal', image: 'https://images.unsplash.com/photo-1520034475321-cbe63696469a?w=400&h=400&fit=crop&q=80' },
+            { id: 7, title: 'Fragmented Memory', artist: 'Elena Martinez', category: 'mixed', size: 'tall', image: 'https://images.unsplash.com/photo-1579965342575-16428a7c8881?w=400&h=800&fit=crop&q=80' },
+            { id: 8, title: 'Eternal Spring', artist: 'Sophia Johnson', category: 'painting', size: 'normal', image: 'https://images.unsplash.com/photo-1508669232496-137b159c1cdb?w=400&h=400&fit=crop&q=80' },
+            { id: 9, title: 'Digital Dystopia', artist: 'Marcus Wei', category: 'digital', size: 'wide', image: 'https://images.unsplash.com/photo-1563089145-599997674d42?w=800&h=400&fit=crop&q=80' },
+            { id: 10, title: 'Stone Whispers', artist: 'Julia Chen', category: 'sculpture', size: 'normal', image: 'https://images.unsplash.com/photo-1661016837937-668ccd544381?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
+            { id: 11, title: 'Cityscape', artist: 'Aiden Parker', category: 'photography', size: 'large', image: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=800&h=800&fit=crop&q=80' },
+            { id: 12, title: 'Floating Islands', artist: 'Elena Martinez', category: 'mixed', size: 'normal', image: 'https://images.unsplash.com/photo-1547891654-e66ed7ebb968?w=400&h=400&fit=crop&q=80' }
+        ];
+
+        function createArtwork(artwork, position, rotationY) {
+            const baseSize = 12;
+            let width, height;
+
+            const sizeMatch = artwork.image.match(/w=(\d+)&h=(\d+)/);
+            if (sizeMatch) {
+                const imgWidth = parseInt(sizeMatch[1]);
+                const imgHeight = parseInt(sizeMatch[2]);
+                const aspectRatio = imgWidth / imgHeight;
+
+                if (artwork.size === 'wide') {
+                    width = baseSize * 1.8;
+                    height = width / aspectRatio;
+                } else if (artwork.size === 'tall') {
+                    height = baseSize * 1.8;
+                    width = height * aspectRatio;
+                } else if (artwork.size === 'large') {
+                    const maxDim = baseSize * 1.5;
+                    if (aspectRatio > 1) {
+                        width = maxDim;
+                        height = width / aspectRatio;
+                    } else {
+                        height = maxDim;
+                        width = height * aspectRatio;
+                    }
+                } else {
+                    const avgDim = baseSize * 1.2;
+                    if (aspectRatio > 1) {
+                        width = avgDim;
+                        height = width / aspectRatio;
+                    } else {
+                        height = avgDim;
+                        width = height * aspectRatio;
+                    }
+                }
+            } else {
+                width = artwork.size === 'wide' ? 15 :
+                    artwork.size === 'tall' ? 8 :
+                        artwork.size === 'large' ? 12 : 10;
+                height = artwork.size === 'wide' ? 6 :
+                    artwork.size === 'tall' ? 15 :
+                        artwork.size === 'large' ? 12 : 10;
+            }
+
+            const geometry = new THREE.PlaneGeometry(width, height);
+
+            textureLoader.load(artwork.image,
+                (texture) => {
+                    texture.colorSpace = THREE.SRGBColorSpace;
+                    const material = new THREE.MeshStandardMaterial({
+                        map: texture,
+                        side: THREE.DoubleSide,
+                        roughness: 0.2
+                    });
+                    const artworkMesh = new THREE.Mesh(geometry, material);
+                    artworkMesh.position.copy(position);
+                    artworkMesh.rotation.y = rotationY;
+
+                    const offset = 0.1;
+                    if (rotationY === 0) {
+                        artworkMesh.position.z += position.z > 0 ? -offset : offset;
+                    } else {
+                        artworkMesh.position.x += position.x > 0 ? -offset : offset;
+                    }
+
+                    scene.add(artworkMesh);
+                },
+                undefined,
+                (err) => {
+                    console.error(`❌ Failed to load artwork: ${artwork.title}`, err);
+                    const material = new THREE.MeshStandardMaterial({
+                        color: 0xaaaaaa,
+                        side: THREE.DoubleSide
+                    });
+                    const artworkMesh = new THREE.Mesh(geometry, material);
+                    artworkMesh.position.copy(position);
+                    artworkMesh.rotation.y = rotationY;
+                    scene.add(artworkMesh);
+                }
+            );
+        }
+
+        const wallPositions = [
+            // Back wall
+            { x: -25, z: -roomDepth / 2 + 0.1, rot: 0 },
+            { x: 0, z: -roomDepth / 2 + 0.1, rot: 0 },
+            { x: 25, z: -roomDepth / 2 + 0.1, rot: 0 },
+
+            // Left wall
+            { x: -roomWidth / 2 + 0.1, z: -25, rot: Math.PI / 2 },
+            { x: -roomWidth / 2 + 0.1, z: 0, rot: Math.PI / 2 },
+            { x: -roomWidth / 2 + 0.1, z: 25, rot: Math.PI / 2 },
+
+            // Right wall
+            { x: roomWidth / 2 - 0.1, z: -25, rot: -Math.PI / 2 },
+            { x: roomWidth / 2 - 0.1, z: 0, rot: -Math.PI / 2 },
+            { x: roomWidth / 2 - 0.1, z: 25, rot: -Math.PI / 2 },
+
+            // Front wall
+            { x: -25, z: roomDepth / 2 - 0.1, rot: 0 },
+            { x: 0, z: roomDepth / 2 - 0.1, rot: 0 },
+            { x: 25, z: roomDepth / 2 - 0.1, rot: 0 }
+        ];
+
+        // Create artworks
+        artworks.forEach((artwork, index) => {
+            const pos = wallPositions[index];
+            createArtwork(
+                artwork,
+                new THREE.Vector3(pos.x, roomHeight / 2.5, pos.z),
+                pos.rot
+            );
+        });
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // Start animation 
+        animate();
+        console.log("🚀 Animation loop started");
+        console.log("✅ 3D Gallery fully initialized!");
+    </script>
+</body>
+
+</html>
